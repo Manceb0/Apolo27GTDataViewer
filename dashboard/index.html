@@ -3,526 +3,482 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>APOLO27 GT · Telemetry Engineering</title>
+<title>APOLO27 GT · F1 Telemetry</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@300;400;500;600;700;800;900&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  /* ---- carbon palette ---- */
-  --bg:#070809;
-  --bg2:#0b0d0f;
-  --panel:#0f1316;
-  --panel2:#12171b;
-  --line:#1b2228;
-  --line2:#242d35;
-  --ink:#e9eef2;
-  --ink2:#aab4bd;
-  --muted:#5d6872;
-  --faint:#39424b;
-  /* ---- brand (reserved, cold steel-teal) ---- */
-  --brand:#34e3c4;
-  --brand-dim:#1c6e62;
-  /* ---- status semaphore ---- */
-  --ok:#36d399;
-  --warn:#f7b733;
-  --crit:#ff3b46;
-  --fault:#ff5470;
-  --nodata:#586472;
-  --shadow:0 24px 60px rgba(0,0,0,.55);
+  --bg:#070708; --panel:#0e0f11; --panel2:#121417;
+  --line:#1d2024; --line2:#2a2e34;
+  --ink:#f1f3f5; --ink2:#aeb4ba; --muted:#6c7278; --faint:#3c4148;
+  --f1:#e10600; --f1-2:#ff2a20; --f1-deep:#7d0a0a;
+  --ok:#2bd17e; --warn:#ffb020; --crit:#ff2e3a; --fault:#ff3b5c; --nodata:#5a636c;
+  --shadow:0 18px 44px rgba(0,0,0,.55);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{
-  background:var(--bg);
-  color:var(--ink);
-  font-family:"Saira Condensed",sans-serif;
-  font-feature-settings:"tnum" 1;
-  overflow-x:hidden;
-  position:relative;
-  min-height:100vh;
-}
-/* engineering grid + vignette atmosphere */
-body::before{
-  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-  background-image:
-    linear-gradient(var(--line) 1px,transparent 1px),
-    linear-gradient(90deg,var(--line) 1px,transparent 1px);
-  background-size:46px 46px;
-  -webkit-mask-image:radial-gradient(circle at 50% 34%,#000 0%,transparent 78%);
-          mask-image:radial-gradient(circle at 50% 34%,#000 0%,transparent 78%);
-  opacity:.32;
-}
-body::after{
-  content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:
-    radial-gradient(120% 80% at 50% -10%,rgba(52,227,196,.07),transparent 55%),
-    radial-gradient(100% 60% at 80% 110%,rgba(255,59,70,.05),transparent 55%);
-}
-.grain{
-  position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.04;mix-blend-mode:overlay;
-}
-.app{position:relative;z-index:1;max-width:1440px;margin:0 auto;padding:20px 24px 40px}
+body{background:var(--bg);color:var(--ink);font-family:"Saira Condensed",sans-serif;font-feature-settings:"tnum" 1;overflow:hidden;position:relative}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
+  background-size:48px 48px;-webkit-mask-image:radial-gradient(circle at 50% 26%,#000,transparent 82%);mask-image:radial-gradient(circle at 50% 26%,#000,transparent 82%);opacity:.28}
+body::after{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(120% 70% at 50% -8%,rgba(225,6,0,.1),transparent 55%),radial-gradient(90% 60% at 92% 108%,rgba(225,6,0,.06),transparent 55%)}
 
-/* ============ HEADER ============ */
-.hdr{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:14px 20px;border:1px solid var(--line);border-radius:4px;
-  background:linear-gradient(180deg,var(--panel2),var(--panel));
-  position:relative;overflow:hidden;
-  animation:rise .6s cubic-bezier(.2,.8,.2,1) both;
-}
-.hdr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--brand)}
-.brand{display:flex;align-items:baseline;gap:12px}
-.mark{
-  font-weight:900;font-size:34px;letter-spacing:.02em;line-height:.8;
-  text-transform:uppercase;
-}
-.mark b{color:var(--brand)}
-.mark .gt{
-  font-size:14px;font-weight:700;letter-spacing:.4em;color:var(--ink2);
-  border:1px solid var(--line2);padding:3px 7px;border-radius:3px;margin-left:6px;
-  position:relative;top:-7px;
-}
-.sub{
-  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.34em;
-  color:var(--muted);text-transform:uppercase;margin-top:5px;
-}
-.hdr-right{display:flex;align-items:center;gap:26px}
-.kv{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
-.kv .k{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.26em;color:var(--muted);text-transform:uppercase}
-.kv .v{font-family:"IBM Plex Mono",monospace;font-size:16px;font-weight:600;color:var(--ink);letter-spacing:.02em}
-.link-pill{
-  display:flex;align-items:center;gap:9px;padding:9px 15px;border-radius:3px;
-  border:1px solid var(--line2);background:#0a0e10;
-  font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;letter-spacing:.2em;
-}
-.dot{width:9px;height:9px;border-radius:50%;background:var(--nodata);box-shadow:0 0 0 0 transparent}
-.link-pill.online{color:var(--brand);border-color:var(--brand-dim)}
-.link-pill.online .dot{background:var(--brand);animation:pulse 1.6s ease-out infinite}
-.link-pill.offline{color:var(--crit);border-color:#5a1f24}
-.link-pill.offline .dot{background:var(--crit)}
-@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(52,227,196,.5)}70%{box-shadow:0 0 0 8px rgba(52,227,196,0)}100%{box-shadow:0 0 0 0 rgba(52,227,196,0)}}
+.app{position:relative;z-index:1;height:100vh;display:flex;flex-direction:column;gap:11px;padding:12px 16px}
 
-/* ============ LAYOUT ============ */
-.grid{display:grid;grid-template-columns:1.55fr 1fr;gap:16px;margin-top:16px}
-.col{display:flex;flex-direction:column;gap:16px}
-.panel{
-  border:1px solid var(--line);border-radius:4px;
-  background:linear-gradient(180deg,var(--panel2),var(--panel));
-  position:relative;box-shadow:var(--shadow);
-  animation:rise .7s cubic-bezier(.2,.8,.2,1) both;
-}
-/* registration corner ticks */
-.panel::before,.panel::after{content:"";position:absolute;width:9px;height:9px;border:1px solid var(--faint)}
-.panel::before{left:8px;top:8px;border-right:0;border-bottom:0}
-.panel::after{right:8px;bottom:8px;border-left:0;border-top:0}
-.p-head{
-  display:flex;align-items:center;justify-content:space-between;
-  padding:11px 16px;border-bottom:1px solid var(--line);
-}
-.p-title{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.3em;color:var(--ink2);text-transform:uppercase}
-.p-id{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.18em;color:var(--faint)}
+/* ===== HEADER ===== */
+.hdr{flex:0 0 auto;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;
+  padding:11px 20px;border:1px solid var(--line);border-radius:4px;position:relative;overflow:hidden;
+  background:linear-gradient(180deg,var(--panel2),var(--panel))}
+.hdr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--f1)}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{height:46px;width:auto;filter:drop-shadow(0 2px 8px rgba(225,6,0,.35))}
+.mark{font-weight:900;font-size:30px;letter-spacing:.01em;line-height:.8;text-transform:uppercase}
+.mark b{color:var(--f1)}
+.gt{font-size:11px;font-weight:700;letter-spacing:.4em;color:var(--ink2);border:1px solid var(--line2);padding:2px 6px;border-radius:3px;margin-left:7px;position:relative;top:-7px}
+.sub{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.3em;color:var(--muted);text-transform:uppercase;margin-top:5px}
+/* clock */
+.clockbox{text-align:center}
+.clock{font-family:"IBM Plex Mono",monospace;font-size:30px;font-weight:600;letter-spacing:.06em;line-height:1}
+.clock #cs{color:var(--f1)}
+.clock-sub{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase;margin-top:4px}
+.clock-sub b{color:var(--ink2);font-weight:600}
+/* right cluster */
+.hdr-right{display:flex;align-items:center;justify-content:flex-end;gap:16px}
+.stats{display:flex;gap:14px}
+.kv{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.kv .k{font-family:"IBM Plex Mono",monospace;font-size:8px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+.kv .v{font-family:"IBM Plex Mono",monospace;font-size:14px;font-weight:600}
+.btn{font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;
+  padding:9px 14px;border-radius:3px;border:1px solid var(--line2);background:#0a0a0b;color:var(--ink);cursor:pointer;transition:.15s;white-space:nowrap}
+.btn:hover{border-color:var(--f1)}
+.btn.paused{background:var(--warn);color:#1a1305;border-color:var(--warn)}
+.link-pill{display:flex;align-items:center;gap:8px;padding:8px 13px;border-radius:3px;border:1px solid var(--line2);background:#0a0a0b;font-family:"IBM Plex Mono",monospace;font-size:11px;font-weight:600;letter-spacing:.18em}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--nodata)}
+.link-pill.online{color:var(--ok);border-color:#1c5a44}.link-pill.online .dot{background:var(--ok);animation:pulse 1.6s ease-out infinite}
+.link-pill.offline{color:var(--crit);border-color:#5a1f24}.link-pill.offline .dot{background:var(--crit)}
+.link-pill.searching{color:var(--ink2);border-color:var(--line2)}.link-pill.searching .dot{background:var(--ink2);animation:blink 1s steps(2) infinite}
+.link-pill.demo{color:#1a1305;background:var(--warn);border-color:var(--warn)}.link-pill.demo .dot{background:#1a1305}
+@keyframes blink{50%{opacity:.25}}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(43,209,126,.5)}70%{box-shadow:0 0 0 7px rgba(43,209,126,0)}100%{box-shadow:0 0 0 0 transparent}}
+.hold-tag{display:none;font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.2em;color:#1a1305;background:var(--warn);padding:3px 8px;border-radius:2px;animation:alarm 1s steps(2) infinite}
+body.paused .hold-tag{display:inline-block}
 
-/* ============ RPM CLUSTER ============ */
-.cluster{padding:8px 18px 22px}
-.cluster-top{display:flex;align-items:center;justify-content:space-between;padding:6px 4px 0}
-.shift{display:flex;gap:5px}
-.seg{width:30px;height:7px;border-radius:2px;background:#161c21;border:1px solid #20272d;transition:background .07s,box-shadow .07s}
-.seg.on{background:var(--ok);border-color:transparent}
-.seg.on.amb{background:var(--warn)}
-.seg.on.red{background:var(--crit)}
-.seg.flash{animation:flash .14s steps(1) infinite}
-@keyframes flash{50%{background:#2a0c10;box-shadow:none}}
-.gauge-wrap{display:flex;align-items:center;justify-content:center;position:relative;margin-top:2px}
-.gauge{width:min(440px,80%)}
-.gtrack{fill:none;stroke:#141a1f;stroke-width:14;stroke-linecap:round}
-.gval{fill:none;stroke:var(--brand);stroke-width:14;stroke-linecap:round;transition:stroke .25s}
-.gtick{stroke:#283139;stroke-width:2}
-.gtick.major{stroke:#3a454e}
-.center-read{position:absolute;text-align:center;top:50%;transform:translateY(-46%)}
-.rpm-num{font-size:104px;font-weight:900;line-height:.82;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
-.rpm-lab{font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.5em;color:var(--muted);margin-top:6px}
-.cluster-bottom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-top:14px}
-.cb{border:1px solid var(--line);border-radius:3px;padding:11px 13px;background:#0a0e10;text-align:center}
-.cb .l{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.26em;color:var(--muted);text-transform:uppercase}
-.cb .v{font-size:40px;font-weight:800;line-height:1;margin-top:6px;font-variant-numeric:tabular-nums}
-.cb .u{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--faint);letter-spacing:.16em}
-.cb .v.gear{font-size:46px}
-.cb.nd .v{color:var(--nodata)}
+/* ===== MAIN GRID (no scroll) ===== */
+.main{flex:1 1 auto;display:grid;grid-template-columns:1.42fr 1fr 1.18fr;grid-template-rows:1fr 1fr;gap:11px;min-height:0}
+.panel{border:1px solid var(--line);border-radius:4px;position:relative;box-shadow:var(--shadow);background:linear-gradient(180deg,var(--panel2),var(--panel));min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.panel::before,.panel::after{content:"";position:absolute;width:8px;height:8px;border:1px solid var(--faint);z-index:2}
+.panel::before{left:7px;top:7px;border-right:0;border-bottom:0}.panel::after{right:7px;bottom:7px;border-left:0;border-top:0}
+.p-head{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:9px 14px;border-bottom:1px solid var(--line)}
+.p-title{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.26em;color:var(--ink2);text-transform:uppercase}
+.p-id{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.16em;color:var(--faint)}
+.pnl-rpm{grid-column:1;grid-row:1 / 3}
+.pnl-coolant{grid-column:2;grid-row:1}
+.pnl-battery{grid-column:2;grid-row:2}
+.pnl-hist{grid-column:3;grid-row:1 / 3}
 
-/* ============ PRIMARY GAUGES (temp/batt) ============ */
-.pg{padding:16px}
-.pg-row{display:flex;align-items:flex-end;justify-content:space-between}
-.pg-name{font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.24em;color:var(--ink2);text-transform:uppercase}
-.pg-val{font-size:58px;font-weight:800;line-height:.86;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.pg-unit{font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--muted);margin-left:4px;letter-spacing:.1em}
-.bar{height:10px;border-radius:2px;background:#11161a;border:1px solid var(--line);overflow:hidden;margin-top:14px;position:relative}
-.bar i{display:block;height:100%;width:0;background:var(--ok);transition:width .25s cubic-bezier(.2,.8,.2,1),background .25s}
-.bar.warnzone::after{content:"";position:absolute;top:0;bottom:0;right:0;width:1px;background:var(--warn)}
-.pg-foot{display:flex;align-items:center;justify-content:space-between;margin-top:11px}
-.trend{display:flex;align-items:center;gap:7px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink2);letter-spacing:.04em}
-.spark{width:96px;height:26px;display:block}
-.spark polyline{fill:none;stroke:var(--ink2);stroke-width:1.5;vector-effect:non-scaling-stroke}
-.statustag{
-  font-family:"IBM Plex Mono",monospace;font-size:10px;font-weight:600;letter-spacing:.2em;
-  padding:4px 9px;border-radius:2px;border:1px solid var(--line2);text-transform:uppercase;color:var(--ink2);
-}
-.s-ok{color:var(--ok);border-color:#1c5a44}
-.s-warn{color:var(--warn);border-color:#6a531a}
-.s-critical{color:var(--crit);border-color:#6a1f25}
-.s-fault{color:var(--fault);border-color:#6a2436}
-.s-no_data{color:var(--nodata);border-color:#2a323b}
+.statustag{font-family:"IBM Plex Mono",monospace;font-size:9.5px;font-weight:600;letter-spacing:.16em;padding:4px 8px;border-radius:2px;text-transform:uppercase;color:var(--ink2);border:1px solid var(--line2)}
+.s-ok{color:var(--ok);border-color:#1c5a44}.s-warn{color:#1a1305;background:var(--warn);border-color:var(--warn)}
+.s-critical,.s-fault{color:#fff;background:var(--crit);border-color:var(--crit);animation:alarm 1s steps(2) infinite}.s-no_data{color:var(--nodata);border-color:#2a323b}
+@keyframes alarm{50%{background:#7d0a10;border-color:#7d0a10}}
 
-/* fault degradation on a primary gauge */
-.faulted .pg-val{color:var(--fault);text-decoration:line-through;text-decoration-thickness:3px;text-decoration-color:rgba(255,84,112,.6)}
-.faulted{
-  background:
-    repeating-linear-gradient(135deg,rgba(255,84,112,.05) 0 11px,transparent 11px 22px),
-    linear-gradient(180deg,var(--panel2),var(--panel));
-  border-color:#3a1c24;
-}
-.fault-banner{
-  display:none;margin-top:12px;padding:8px 11px;border:1px solid #4a212c;border-radius:3px;
-  background:#1a0d11;color:var(--fault);
-  font-family:"IBM Plex Mono",monospace;font-size:10.5px;letter-spacing:.08em;
-}
-.faulted .fault-banner{display:block;animation:rise .3s ease both}
+/* RPM cluster */
+.cluster{flex:1 1 auto;display:flex;flex-direction:column;padding:8px 16px 12px;min-height:0}
+.cluster-top{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;padding:2px 2px 0}
+.shift{display:flex;gap:4px}
+.seg{width:26px;height:6px;border-radius:2px;background:#15171a;border:1px solid #21262c}
+.seg.on{background:var(--ok);border-color:transparent}.seg.on.amb{background:var(--warn)}.seg.on.red{background:var(--f1)}
+.seg.flash{animation:flash .13s steps(1) infinite}@keyframes flash{50%{background:#2a0507}}
+.redline-tag{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.12em;color:var(--f1)}
+.gauge-wrap{flex:1 1 auto;position:relative;display:flex;align-items:center;justify-content:center;min-height:0}
+.gauge{width:100%;height:100%;max-height:300px}
+.gtrack{fill:none;stroke:#15181c;stroke-width:13;stroke-linecap:round}
+.gzone{fill:none;stroke-width:5;stroke-linecap:butt;opacity:.95}
+.gval{fill:none;stroke:var(--ink);stroke-width:13;stroke-linecap:round;transition:stroke .2s}
+.gtick{stroke:#2a323a;stroke-width:2}.gtick.major{stroke:#414a53}
+.center-read{position:absolute;text-align:center;top:50%;left:50%;transform:translate(-50%,-48%)}
+.rpm-num{font-size:84px;font-weight:900;line-height:.82;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.rpm-lab{font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.46em;color:var(--muted);margin-top:4px}
+.cluster-bottom{flex:0 0 auto;display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px}
+.cb{border:1px solid var(--line);border-radius:3px;padding:8px 10px;background:#0a0a0b;text-align:center}
+.cb .l{font-family:"IBM Plex Mono",monospace;font-size:8.5px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+.cb .v{font-size:32px;font-weight:800;line-height:1;margin-top:3px;font-variant-numeric:tabular-nums}
+.cb .u{font-family:"IBM Plex Mono",monospace;font-size:8.5px;color:var(--faint);letter-spacing:.12em}
+.cb .v.gear{font-size:36px}.cb.nd .v{color:var(--nodata)}
 
-/* ============ DATA MATRIX ============ */
-.matrix{grid-column:1 / 3;display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
-.tile{
-  border:1px solid var(--line);border-radius:4px;padding:14px 15px 13px;
-  background:linear-gradient(180deg,var(--panel2),var(--panel));
-  position:relative;overflow:hidden;
-  animation:rise .6s cubic-bezier(.2,.8,.2,1) both;
-}
-.tile::before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:2px;background:var(--line2);transition:background .25s}
-.tile.t-ok::before{background:var(--ok)}
-.tile.t-warn::before{background:var(--warn)}
-.tile.t-critical::before{background:var(--crit)}
-.tile.t-fault::before{background:var(--fault)}
-.tile.t-no_data::before{background:var(--nodata)}
+/* Primary gauges */
+.pg{flex:1 1 auto;display:flex;flex-direction:column;padding:11px 14px;min-height:0}
+.pg-row{flex:0 0 auto;display:flex;align-items:flex-end;justify-content:space-between}
+.pg-name{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.2em;color:var(--ink2);text-transform:uppercase}
+.pg-val{font-size:46px;font-weight:800;line-height:.86;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pg-unit{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--muted);margin-left:3px}
+.barwrap{flex:0 0 auto;margin-top:auto;position:relative}
+.bar{height:13px;border-radius:2px;border:1px solid var(--line);overflow:hidden;position:relative;background:#0c0d0f}
+.bar .zones{position:absolute;inset:0}.bar .zones span{position:absolute;top:0;bottom:0}
+.bar i{position:absolute;top:0;bottom:0;left:0;width:0;background:var(--ok);transition:width .25s cubic-bezier(.2,.8,.2,1),background .25s;mix-blend-mode:screen}
+.ticks{position:relative;height:16px;margin-top:2px}
+.tk{position:absolute;transform:translateX(-50%);text-align:center}
+.tk b{display:block;width:1px;height:5px;margin:0 auto}.tk.warn b{background:var(--warn)}.tk.crit b{background:var(--crit)}
+.tk span{font-family:"IBM Plex Mono",monospace;font-size:8px;letter-spacing:.05em}.tk.warn span{color:var(--warn)}.tk.crit span{color:var(--crit)}
+.pg-foot{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;margin-top:9px}
+.trend{font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink2)}
+.fault-banner{display:none;flex:0 0 auto;margin-top:9px;padding:7px 10px;border:1px solid #5a1620;border-radius:3px;
+  background:repeating-linear-gradient(135deg,rgba(255,46,58,.12) 0 9px,rgba(255,46,58,.04) 9px 18px);color:var(--fault);font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.05em}
+.faulted .pg-val{color:var(--fault);text-decoration:line-through;text-decoration-thickness:3px;text-decoration-color:rgba(255,59,92,.55)}
+.faulted .fault-banner{display:block}
+/* battery cell visual */
+.batt{flex:1 1 auto;display:flex;align-items:center;gap:14px;margin-top:6px;min-height:0}
+.batt-cell{flex:1 1 auto;height:100%;max-height:62px}
+.batt-side{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:2px}
+.bolt{font-size:20px;line-height:1;color:var(--warn);filter:drop-shadow(0 0 6px rgba(255,176,32,.5));transition:color .25s,filter .25s}
+.bolt.crit{color:var(--crit);filter:drop-shadow(0 0 6px rgba(255,46,58,.6))}
+.batt-pct{font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:600;color:var(--ink2)}
+/* mini bars in cluster tiles */
+.cb .mini{height:5px;border-radius:2px;background:#15171a;border:1px solid #21262c;margin-top:7px;overflow:hidden}
+.cb .mini i{display:block;height:100%;width:0;background:var(--f1);transition:width .2s}
+.cb .mini.amber i{background:var(--warn)}
+
+/* History */
+.chips{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:5px;padding:9px 12px 4px}
+.chip{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:5px 8px;border:1px solid var(--line2);border-radius:3px;color:var(--ink2);background:#0b0b0c;cursor:pointer;transition:.15s}
+.chip:hover{border-color:var(--f1-deep);color:var(--ink)}.chip.active{background:var(--f1);border-color:var(--f1);color:#fff;font-weight:600}
+.chart-head{flex:0 0 auto;display:flex;align-items:baseline;justify-content:space-between;padding:2px 14px 0}
+.chart-now{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.chart-meta{font-family:"IBM Plex Mono",monospace;font-size:9px;letter-spacing:.1em;color:var(--muted)}
+.chart-wrap{flex:1 1 auto;padding:4px 10px 8px;min-height:0}
+#chart{width:100%;height:100%;display:block}
+.c-grid{stroke:#171a1e;stroke-width:1}
+.c-axis{font-family:"IBM Plex Mono",monospace;font-size:9px;fill:var(--muted)}
+.c-thr{stroke-width:1.2;stroke-dasharray:5 4}.c-thr.warn{stroke:var(--warn)}.c-thr.crit{stroke:var(--crit)}
+.c-thrlab{font-family:"IBM Plex Mono",monospace;font-size:9px}
+.c-line{fill:none;stroke-width:2;vector-effect:non-scaling-stroke}.c-fill{opacity:.1}
+
+/* ===== BOTTOM (matrix + diagnostics) ===== */
+.bottom{flex:0 0 auto;display:grid;grid-template-columns:2.1fr 1fr;gap:11px;height:152px}
+.matrix{flex:1 1 auto;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:1fr 1fr;gap:8px;padding:10px}
+.tile{border:1px solid var(--line);border-radius:3px;padding:7px 10px;position:relative;overflow:hidden;cursor:pointer;background:#0b0c0e;transition:border-color .15s}
+.tile:hover{border-color:var(--f1-deep)}
+.tile::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:2px;background:var(--line2);transition:background .25s}
+.tile.t-ok::before{background:var(--ok)}.tile.t-warn::before{background:var(--warn)}.tile.t-critical::before,.tile.t-fault::before{background:var(--crit)}.tile.t-no_data::before{background:var(--nodata)}
 .t-top{display:flex;align-items:center;justify-content:space-between}
-.t-name{font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.22em;color:var(--muted);text-transform:uppercase}
-.t-trend{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--faint);letter-spacing:.05em}
-.t-val{font-size:42px;font-weight:800;line-height:1;margin-top:10px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.t-unit{font-family:"IBM Plex Mono",monospace;font-size:10px;color:var(--faint);letter-spacing:.16em;margin-top:3px}
-.tile.t-fault .t-val{color:var(--fault)}
-.tile.t-no_data .t-val{color:var(--nodata)}
-.tile.t-critical .t-val{color:var(--crit)}
+.t-name{font-family:"IBM Plex Mono",monospace;font-size:8.5px;letter-spacing:.16em;color:var(--muted);text-transform:uppercase}
+.t-trend{font-family:"IBM Plex Mono",monospace;font-size:9px;color:var(--faint)}
+.t-val{font-size:27px;font-weight:800;line-height:1;margin-top:3px;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.t-unit{font-family:"IBM Plex Mono",monospace;font-size:8px;color:var(--faint);letter-spacing:.12em;margin-top:1px}
+.tile.t-fault .t-val,.tile.t-critical .t-val{color:var(--crit)}.tile.t-no_data .t-val{color:var(--nodata)}
 
-/* ============ DIAGNOSTICS LOG ============ */
-.diag{min-height:120px}
-.diag-body{padding:6px 0 8px;max-height:230px;overflow-y:auto}
-.diag-empty{padding:26px 16px;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:11px;letter-spacing:.18em;color:var(--faint)}
-.evt{display:grid;grid-template-columns:74px 88px 1fr;gap:10px;align-items:center;padding:9px 16px;border-bottom:1px solid var(--line);font-family:"IBM Plex Mono",monospace;font-size:11px}
+.diag-body{flex:1 1 auto;padding:2px 0;overflow-y:auto;min-height:0}
+.diag-empty{padding:18px 14px;text-align:center;font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.16em;color:var(--faint)}
+.evt{display:grid;grid-template-columns:64px 76px 1fr;gap:8px;align-items:center;padding:6px 14px;border-bottom:1px solid var(--line);font-family:"IBM Plex Mono",monospace;font-size:10px}
 .evt:last-child{border-bottom:0}
-.evt .ts{color:var(--muted);letter-spacing:.04em}
-.evt .sig{color:var(--ink);letter-spacing:.12em;text-transform:uppercase;font-weight:600}
-.evt .msg{color:var(--ink2)}
-.evt.lv-fault .sig{color:var(--fault)} .evt.lv-critical .sig{color:var(--crit)}
-.evt.lv-warn .sig{color:var(--warn)} .evt.lv-no_data .sig{color:var(--nodata)}
+.evt .ts{color:var(--muted)}.evt .sig{color:var(--ink);letter-spacing:.08em;text-transform:uppercase;font-weight:600}.evt .msg{color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.evt.lv-fault .sig,.evt.lv-critical .sig{color:var(--crit)}.evt.lv-warn .sig{color:var(--warn)}.evt.lv-no_data .sig{color:var(--nodata)}
 .evt.flashin{animation:evtin .4s cubic-bezier(.2,.8,.2,1) both}
-@keyframes evtin{from{opacity:0;transform:translateX(-8px);background:rgba(255,84,112,.08)}to{opacity:1;transform:none}}
+@keyframes evtin{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:none}}
 
-/* ============ FOOTER ============ */
-.foot{
-  display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding:0 6px;
-  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;
-}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.hdr,.panel{animation:rise .5s cubic-bezier(.2,.8,.2,1) both}
 
-@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
-.panel:nth-child(1){animation-delay:.05s}.panel:nth-child(2){animation-delay:.12s}
-.col .panel:nth-child(1){animation-delay:.1s}.col .panel:nth-child(2){animation-delay:.18s}
-.matrix .tile:nth-child(1){animation-delay:.16s}.matrix .tile:nth-child(2){animation-delay:.2s}
-.matrix .tile:nth-child(3){animation-delay:.24s}.matrix .tile:nth-child(4){animation-delay:.28s}
-.matrix .tile:nth-child(5){animation-delay:.32s}.matrix .tile:nth-child(6){animation-delay:.36s}
-.matrix .tile:nth-child(7){animation-delay:.4s}.matrix .tile:nth-child(8){animation-delay:.44s}
-
-@media (max-width:980px){
-  .grid{grid-template-columns:1fr}
-  .matrix{grid-column:auto;grid-template-columns:repeat(2,1fr)}
-  .rpm-num{font-size:78px}
+/* fallback: pantallas chicas o bajas -> permitir scroll para no romper */
+@media (max-width:1000px),(max-height:620px){
+  body{overflow:auto}.app{height:auto;min-height:100vh}
+  .main{grid-template-columns:1fr;grid-template-rows:none}
+  .pnl-rpm,.pnl-coolant,.pnl-battery,.pnl-hist{grid-column:auto;grid-row:auto;min-height:260px}
+  .bottom{grid-template-columns:1fr;height:auto}.matrix{grid-template-columns:repeat(2,1fr)}
 }
-@media (prefers-reduced-motion:reduce){
-  *{animation:none!important;transition:none!important}
-}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
-<svg class="grain"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
-
 <div class="app">
 
-  <!-- HEADER -->
   <header class="hdr">
     <div class="brand">
+      <img class="logo" src="logo.png" alt="APOLO27 GT">
       <div>
         <div class="mark">APOLO<b>27</b><span class="gt">GT</span></div>
-        <div class="sub">PE3 ECU · TELEMETRY ENGINEERING · LIVE</div>
+        <div class="sub">PE3 ECU · F1 TELEMETRY ENGINEERING</div>
       </div>
     </div>
+    <div class="clockbox">
+      <div class="clock"><span id="ch">00</span>:<span id="cm">00</span><span id="cs">:00</span></div>
+      <div class="clock-sub"><span id="date">—</span> · SESSION <b id="m-sess">00:00</b> <span class="hold-tag">❚❚ HOLD</span></div>
+    </div>
     <div class="hdr-right">
-      <div class="kv"><span class="k">Packet</span><span class="v" id="m-pkt">000000</span></div>
-      <div class="kv"><span class="k">Rate</span><span class="v" id="m-hz">--</span></div>
-      <div class="kv"><span class="k">Loss</span><span class="v" id="m-loss">0.00%</span></div>
-      <div class="kv"><span class="k">CRC err</span><span class="v" id="m-crc">0</span></div>
-      <div class="kv"><span class="k">Session</span><span class="v" id="m-sess">00:00</span></div>
-      <div class="link-pill offline" id="link"><span class="dot"></span><span id="link-t">OFFLINE</span></div>
+      <div class="stats">
+        <div class="kv"><span class="k">Pkt</span><span class="v" id="m-pkt">000000</span></div>
+        <div class="kv"><span class="k">Rate</span><span class="v" id="m-hz">--</span></div>
+        <div class="kv"><span class="k">Loss</span><span class="v" id="m-loss">0.00%</span></div>
+        <div class="kv"><span class="k">CRC</span><span class="v" id="m-crc">0</span></div>
+      </div>
+      <button class="btn" id="pauseBtn">❚❚ Pause</button>
+      <div class="link-pill searching" id="link" title="El backend Python debe leer el COM y publicar en ws://localhost:8765"><span class="dot"></span><span id="link-t">SEARCHING COM…</span></div>
     </div>
   </header>
 
-  <div class="grid">
-    <!-- LEFT: RPM CLUSTER -->
-    <section class="panel">
+  <div class="main">
+    <!-- RPM -->
+    <section class="panel pnl-rpm">
       <div class="p-head"><span class="p-title">Engine · PE1</span><span class="p-id">CH·0x0CFFF048</span></div>
       <div class="cluster">
-        <div class="cluster-top">
-          <span class="p-id">0</span>
-          <div class="shift" id="shift"></div>
-          <span class="p-id" id="redline">9000</span>
-        </div>
+        <div class="cluster-top"><div class="shift" id="shift"></div><span class="redline-tag">REDLINE 9000</span></div>
         <div class="gauge-wrap">
-          <svg class="gauge" viewBox="0 0 300 300">
+          <svg class="gauge" viewBox="0 0 300 300" preserveAspectRatio="xMidYMid meet">
             <g id="ticks"></g>
             <path class="gtrack" id="track"></path>
+            <path class="gzone" id="zoneWarn" stroke="var(--warn)"></path>
+            <path class="gzone" id="zoneCrit" stroke="var(--f1)"></path>
             <path class="gval" id="varc"></path>
           </svg>
-          <div class="center-read">
-            <div class="rpm-num" id="rpm">0</div>
-            <div class="rpm-lab">R · P · M</div>
-          </div>
+          <div class="center-read"><div class="rpm-num" id="rpm">0</div><div class="rpm-lab">R · P · M</div></div>
         </div>
         <div class="cluster-bottom">
-          <div class="cb"><div class="l">Throttle</div><div class="v" id="tps2">0</div><div class="u">% TPS</div></div>
+          <div class="cb"><div class="l">Throttle %</div><div class="v" id="tps2">0</div><div class="mini"><i id="tps2-bar"></i></div></div>
           <div class="cb nd"><div class="l">Gear</div><div class="v gear" id="gear">—</div><div class="u">No ECU ch.</div></div>
-          <div class="cb"><div class="l">Ignition</div><div class="v" id="ign2">0</div><div class="u">° BTDC</div></div>
+          <div class="cb"><div class="l">Ign ° BTDC</div><div class="v" id="ign2">0</div><div class="mini amber"><i id="ign2-bar"></i></div></div>
         </div>
       </div>
     </section>
 
-    <!-- RIGHT: PRIMARY GAUGES -->
-    <div class="col">
-      <section class="panel" id="g-coolant">
-        <div class="p-head"><span class="p-title">Coolant Temp · PE6</span><span class="statustag s-no_data" id="coolant-tag">--</span></div>
-        <div class="pg">
-          <div class="pg-row">
-            <span class="pg-name">Engine Thermal</span>
-            <div><span class="pg-val" id="coolant">0</span><span class="pg-unit" id="coolant-u">°C</span></div>
-          </div>
-          <div class="bar warnzone"><i id="coolant-bar"></i></div>
-          <div class="pg-foot">
-            <span class="trend"><svg class="spark" id="coolant-spark" viewBox="0 0 96 26" preserveAspectRatio="none"><polyline points=""/></svg></span>
-            <span class="trend" id="coolant-trend">→ 0.0 /min</span>
-          </div>
-          <div class="fault-banner" id="coolant-fb">⚠ SENSOR FAULT</div>
+    <!-- COOLANT -->
+    <section class="panel pnl-coolant" id="g-coolant">
+      <div class="p-head"><span class="p-title">Coolant Temp · PE6</span><span class="statustag s-no_data" id="coolant-tag">--</span></div>
+      <div class="pg">
+        <div class="pg-row"><span class="pg-name">Engine Thermal</span><div><span class="pg-val" id="coolant">0</span><span class="pg-unit">°C</span></div></div>
+        <div class="barwrap"><div class="bar"><div class="zones" id="coolant-zones"></div><i id="coolant-bar"></i></div><div class="ticks" id="coolant-ticks"></div></div>
+        <div class="pg-foot"><span class="trend" id="coolant-trend">→ 0.0 /min</span><span class="p-id">20–130 °C</span></div>
+        <div class="fault-banner" id="coolant-fb">⚠ SENSOR FAULT</div>
+      </div>
+    </section>
+
+    <!-- BATTERY -->
+    <section class="panel pnl-battery" id="g-battery">
+      <div class="p-head"><span class="p-title">Battery · PE6</span><span class="statustag s-no_data" id="battery-tag">--</span></div>
+      <div class="pg">
+        <div class="pg-row"><span class="pg-name">System Voltage</span><div><span class="pg-val" id="battery">0.0</span><span class="pg-unit">V</span></div></div>
+        <div class="batt">
+          <svg class="batt-cell" id="batt-cell" viewBox="0 0 230 60" preserveAspectRatio="xMidYMid meet"></svg>
+          <div class="batt-side"><span class="bolt" id="batt-bolt">⚡</span><span class="batt-pct" id="batt-pct">--%</span></div>
         </div>
-      </section>
+        <div class="pg-foot"><span class="trend" id="battery-trend">→ 0.00 /min</span><span class="p-id">10.5–15 V · 12V SYS</span></div>
+        <div class="fault-banner" id="battery-fb">⚠ SENSOR FAULT</div>
+      </div>
+    </section>
 
-      <section class="panel" id="g-battery">
-        <div class="p-head"><span class="p-title">Battery · PE6</span><span class="statustag s-no_data" id="battery-tag">--</span></div>
-        <div class="pg">
-          <div class="pg-row">
-            <span class="pg-name">System Voltage</span>
-            <div><span class="pg-val" id="battery">0.0</span><span class="pg-unit">V</span></div>
-          </div>
-          <div class="bar"><i id="battery-bar"></i></div>
-          <div class="pg-foot">
-            <span class="trend"><svg class="spark" id="battery-spark" viewBox="0 0 96 26" preserveAspectRatio="none"><polyline points=""/></svg></span>
-            <span class="trend" id="battery-trend">→ 0.00 /min</span>
-          </div>
-          <div class="fault-banner" id="battery-fb">⚠ SENSOR FAULT</div>
-        </div>
-      </section>
-    </div>
-
-    <!-- DATA MATRIX -->
-    <section class="matrix" id="matrix"></section>
-
-    <!-- DIAGNOSTICS -->
-    <section class="panel diag" style="grid-column:1 / 3">
-      <div class="p-head"><span class="p-title">Diagnostics · System Health Audit</span><span class="p-id" id="diag-count">0 EVENTS</span></div>
-      <div class="diag-body" id="diag"><div class="diag-empty">NO ACTIVE FAULTS · ALL CHANNELS NOMINAL</div></div>
+    <!-- HISTORY -->
+    <section class="panel pnl-hist">
+      <div class="p-head"><span class="p-title">History · Trend &amp; Thresholds</span><span class="p-id">60 s</span></div>
+      <div class="chips" id="chips"></div>
+      <div class="chart-head"><span class="chart-now" id="chart-now">—</span><span class="chart-meta" id="chart-meta"></span></div>
+      <div class="chart-wrap"><svg id="chart"></svg></div>
     </section>
   </div>
 
-  <footer class="foot">
-    <span>APOLO27 GT · ESP32-CAN-X2 → LORA → GATEWAY → PYTHON → WS:8765</span>
-    <span id="src">SOURCE: ——</span>
-  </footer>
+  <div class="bottom">
+    <section class="panel"><div class="matrix" id="matrix"></div></section>
+    <section class="panel">
+      <div class="p-head"><span class="p-title">Diagnostics · Audit</span><span class="p-id" id="diag-count">0 EVT</span></div>
+      <div class="diag-body" id="diag"><div class="diag-empty">ALL CHANNELS NOMINAL</div></div>
+    </section>
+  </div>
 </div>
 
 <script>
-/* ---------------- geometry helpers ---------------- */
-const CX=150, CY=150, R=118, A0=-225, A1=45; // 270° sweep
-function polar(cx,cy,r,deg){const a=(deg)*Math.PI/180;return[cx+r*Math.cos(a),cy+r*Math.sin(a)];}
-function arcPath(cx,cy,r,start,end){
-  const [x1,y1]=polar(cx,cy,r,start),[x2,y2]=polar(cx,cy,r,end);
-  const large=(end-start)<=180?0:1;
-  return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
-}
+/* ===== channel config (mirror backend config.py) ===== */
+const CH={
+  rpm:{label:'RPM',unit:'rpm',dec:0,dir:'high',warn:8000,crit:9000,min:0,max:9500},
+  coolant:{label:'Coolant',unit:'°C',dec:1,dir:'high',warn:100,crit:110,min:20,max:130},
+  battery:{label:'Battery',unit:'V',dec:1,dir:'low',warn:12,crit:11.5,min:10.5,max:15},
+  air:{label:'Air',unit:'°C',dec:1,dir:'high',warn:70,crit:90,min:0,max:100},
+  map:{label:'MAP',unit:'kPa',dec:1,min:0,max:250},
+  lambda:{label:'Lambda',unit:'',dec:2,min:0.6,max:1.4},
+  tps:{label:'Throttle',unit:'%',dec:1,min:0,max:100},
+  ign:{label:'Ignition',unit:'°',dec:1,min:0,max:45},
+};
+const HIST=['rpm','coolant','battery','air','map','lambda','tps','ign'];
+
+/* ===== RPM gauge ===== */
+const CX=150,CY=150,R=118,A0=-225,A1=45;
+function polar(cx,cy,r,d){const a=d*Math.PI/180;return[cx+r*Math.cos(a),cy+r*Math.sin(a)];}
+function arcPath(cx,cy,r,s,e){const[x1,y1]=polar(cx,cy,r,s),[x2,y2]=polar(cx,cy,r,e);const lg=(e-s)<=180?0:1;return `M ${x1} ${y1} A ${r} ${r} 0 ${lg} 1 ${x2} ${y2}`;}
+const ang=t=>A0+(A1-A0)*Math.max(0,Math.min(1,t));
 document.getElementById('track').setAttribute('d',arcPath(CX,CY,R,A0,A1));
-// ticks
-(()=>{const g=document.getElementById('ticks');for(let i=0;i<=18;i++){const t=i/18,deg=A0+(A1-A0)*t,major=i%3===0;const[x1,y1]=polar(CX,CY,R-(major?20:13),deg),[x2,y2]=polar(CX,CY,R-2,deg);const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('class','gtick'+(major?' major':''));g.appendChild(l);}})();
-// shift lights
+document.getElementById('zoneWarn').setAttribute('d',arcPath(CX,CY,R+10,ang(CH.rpm.warn/CH.rpm.max),ang(CH.rpm.crit/CH.rpm.max)));
+document.getElementById('zoneCrit').setAttribute('d',arcPath(CX,CY,R+10,ang(CH.rpm.crit/CH.rpm.max),ang(1)));
+(()=>{const g=document.getElementById('ticks');for(let i=0;i<=18;i++){const t=i/18,deg=A0+(A1-A0)*t,mj=i%3===0;const[x1,y1]=polar(CX,CY,R-(mj?20:13),deg),[x2,y2]=polar(CX,CY,R-2,deg);const l=document.createElementNS('http://www.w3.org/2000/svg','line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('class','gtick'+(mj?' major':''));g.appendChild(l);}})();
 (()=>{const s=document.getElementById('shift');for(let i=0;i<10;i++){const d=document.createElement('div');d.className='seg';s.appendChild(d);}})();
+function setRPM(v){const pct=Math.max(0,Math.min(1,v/9000));
+  document.getElementById('varc').setAttribute('d',arcPath(CX,CY,R,A0,ang(pct)));
+  document.getElementById('varc').style.stroke=pct>=1?'var(--f1)':pct>0.89?'var(--warn)':'var(--ink)';
+  document.querySelectorAll('.seg').forEach((s,i)=>{const lit=Math.round(pct*10);s.className='seg'+(i<lit?' on'+(i>=8?' red':i>=6?' amb':''):'');if(pct>0.985)s.classList.add('flash');});}
 
-const REDLINE=9000;
-function setRPM(v){
-  const pct=Math.max(0,Math.min(1,v/REDLINE));
-  document.getElementById('varc').setAttribute('d',arcPath(CX,CY,R,A0,A0+(A1-A0)*pct));
-  const col=pct>0.92?'var(--crit)':pct>0.78?'var(--warn)':'var(--brand)';
-  document.getElementById('varc').style.stroke=col;
-  const segs=document.querySelectorAll('.seg'),lit=Math.round(pct*10);
-  segs.forEach((s,i)=>{s.className='seg'+(i<lit?' on'+(i>=8?' red':i>=6?' amb':''):'');
-    if(pct>0.97)s.classList.add('flash');});
+/* ===== bars: zones + ticks ===== */
+function pos(k,v){const c=CH[k];return Math.max(0,Math.min(100,((v-c.min)/(c.max-c.min))*100));}
+function buildBar(k){const c=CH[k],z=document.getElementById(k+'-zones'),tk=document.getElementById(k+'-ticks'),wp=pos(k,c.warn),cp=pos(k,c.crit);
+  z.innerHTML=c.dir==='high'
+    ?`<span style="left:0;right:${100-wp}%;background:rgba(43,209,126,.14)"></span><span style="left:${wp}%;right:${100-cp}%;background:rgba(255,176,32,.18)"></span><span style="left:${cp}%;right:0;background:rgba(255,46,58,.2)"></span>`
+    :`<span style="left:0;right:${100-cp}%;background:rgba(255,46,58,.2)"></span><span style="left:${cp}%;right:${100-wp}%;background:rgba(255,176,32,.18)"></span><span style="left:${wp}%;right:0;background:rgba(43,209,126,.14)"></span>`;
+  tk.innerHTML=`<div class="tk warn" style="left:${wp}%"><b></b><span>${c.warn}</span></div><div class="tk crit" style="left:${cp}%"><b></b><span>${c.crit}</span></div>`;}
+buildBar('coolant');
+
+/* battery cell: cuerpo + segmentos + umbrales dibujados a escala */
+function buildBattCell(){
+  const svg=document.getElementById('batt-cell'),c=CH.battery,min=c.min,max=c.max;
+  const bx=v=>10+((v-min)/(max-min))*196;   // x dentro del cuerpo
+  let s='';
+  s+='<rect x="4" y="14" width="200" height="32" rx="5" fill="#0c0d0f" stroke="var(--line2)" stroke-width="2"/>';
+  s+='<rect x="206" y="22" width="10" height="16" rx="2" fill="var(--line2)"/>';
+  s+='<rect id="batt-fill" x="10" y="18" width="0" height="24" rx="2" fill="var(--ok)"/>';
+  for(let i=1;i<10;i++){const x=10+196*i/10;s+=`<rect x="${x-1}" y="16" width="2" height="28" fill="#0c0d0f"/>`;}
+  [['warn',c.warn,'var(--warn)'],['crit',c.crit,'var(--crit)']].forEach(([n,v,col])=>{const x=bx(v);
+    s+=`<line x1="${x.toFixed(1)}" y1="12" x2="${x.toFixed(1)}" y2="48" stroke="${col}" stroke-width="1.4" stroke-dasharray="4 3"/>`;
+    s+=`<text x="${x.toFixed(1)}" y="9" fill="${col}" font-family="IBM Plex Mono,monospace" font-size="8.5" text-anchor="middle">${v}</text>`;});
+  svg.innerHTML=s;
 }
+function updateBatt(val,status){
+  const fill=document.getElementById('batt-fill');if(!fill)return;
+  const c=CH.battery,min=c.min,max=c.max,clamp=Math.max(min,Math.min(max,val));
+  fill.setAttribute('width',(((clamp-min)/(max-min))*196).toFixed(1));
+  const col=(status==='critical'||status==='fault')?'var(--crit)':status==='warn'?'var(--warn)':'var(--ok)';
+  fill.setAttribute('fill',col);
+  document.getElementById('batt-pct').textContent=Math.round(pos('battery',val))+'%';
+  document.getElementById('batt-bolt').className='bolt'+((status==='critical'||status==='fault')?' crit':'');
+}
+buildBattCell();
 
-/* ---------------- value smoothing ---------------- */
-const disp={}; const targ={};
-function smooth(id,val,dec){targ[id]={v:val,dec};}
-function tick(){for(const id in targ){const t=targ[id];if(disp[id]===undefined)disp[id]=t.v;
-  disp[id]+=(t.v-disp[id])*0.22;const el=document.getElementById(id);
-  if(el)el.textContent=Math.abs(t.v-disp[id])<Math.pow(10,-t.dec)?t.v.toFixed(t.dec):disp[id].toFixed(t.dec);}
-  requestAnimationFrame(tick);}
-requestAnimationFrame(tick);
+/* ===== smoothing ===== */
+const disp={},targ={};
+function smooth(id,v,d){targ[id]={v,dec:d};}
+function tickAnim(){for(const id in targ){const t=targ[id];if(disp[id]===undefined)disp[id]=t.v;disp[id]+=(t.v-disp[id])*0.22;const el=document.getElementById(id);if(el)el.textContent=Math.abs(t.v-disp[id])<Math.pow(10,-t.dec)?t.v.toFixed(t.dec):disp[id].toFixed(t.dec);}requestAnimationFrame(tickAnim);}
+requestAnimationFrame(tickAnim);
+const arr=t=>t>0.5?'↑':t<-0.5?'↓':'→';
 
-/* ---------------- sparklines ---------------- */
-const hist={};
-function spark(id,val){const a=hist[id]||(hist[id]=[]);a.push(val);if(a.length>40)a.shift();
-  const min=Math.min(...a),max=Math.max(...a),rng=(max-min)||1;
-  const pts=a.map((v,i)=>`${(i/(a.length-1||1))*96},${24-((v-min)/rng)*22+1}`).join(' ');
-  const p=document.querySelector('#'+id+' polyline');if(p)p.setAttribute('points',pts);}
+/* ===== history series ===== */
+const series={},lastStatus={};
+function push(k,v,t){const a=series[k]||(series[k]=[]);a.push({t,v});const cut=t-60000;while(a.length&&a[0].t<cut)a.shift();}
 
-/* ---------------- matrix tiles ---------------- */
-const MATRIX=[
-  {key:'map',label:'MAP',unit:'kPa',dec:1},
-  {key:'lambda',label:'Lambda λ',unit:'AFR',dec:2},
-  {key:'air',label:'Air Temp',unit:'°C',dec:1},
-  {key:'fuel',label:'Fuel Open',unit:'ms',dec:1},
-  {key:'baro',label:'Barometer',unit:'kPa',dec:1},
-  {key:'tps',label:'Throttle',unit:'%',dec:1},
-  {key:'ign',label:'Ign Angle',unit:'°',dec:1},
-  {key:'an5',label:'Analog 5',unit:'V',dec:3},
-];
-(()=>{const m=document.getElementById('matrix');MATRIX.forEach(c=>{m.insertAdjacentHTML('beforeend',
-  `<div class="tile t-no_data" id="tile-${c.key}"><div class="t-top"><span class="t-name">${c.label}</span><span class="t-trend" id="tr-${c.key}">—</span></div><div class="t-val" id="${c.key}">0</div><div class="t-unit">${c.unit}</div></div>`);});})();
+/* ===== matrix ===== */
+const MT=['map','lambda','air','fuel','baro','tps','ign','an5'];
+const EX={fuel:{label:'Fuel',unit:'ms',dec:1},baro:{label:'Baro',unit:'kPa',dec:1},an5:{label:'Analog 5',unit:'V',dec:3}};
+const meta=k=>CH[k]||EX[k];
+(()=>{const m=document.getElementById('matrix');MT.forEach(k=>{const c=meta(k);m.insertAdjacentHTML('beforeend',`<div class="tile t-no_data" id="tile-${k}" data-k="${k}"><div class="t-top"><span class="t-name">${c.label}</span><span class="t-trend" id="tr-${k}">—</span></div><div class="t-val" id="${k}">0</div><div class="t-unit">${c.unit||'—'}</div></div>`);});
+  m.querySelectorAll('.tile').forEach(t=>t.onclick=()=>{if(CH[t.dataset.k])selectCh(t.dataset.k);});})();
 
-function arrow(t){return t>0.5?'↑':t<-0.5?'↓':'→';}
+/* ===== history chart (fills container, crisp) ===== */
+let curCh='coolant';
+function chips(){const b=document.getElementById('chips');b.innerHTML='';HIST.forEach(k=>{const c=document.createElement('div');c.className='chip'+(k===curCh?' active':'');c.textContent=CH[k].label;c.onclick=()=>selectCh(k);b.appendChild(c);});}
+function selectCh(k){curCh=k;chips();drawChart();}
+chips();
+const STC={ok:'var(--ok)',warn:'var(--warn)',critical:'var(--crit)',fault:'var(--fault)',no_data:'var(--nodata)'};
+function drawChart(){
+  const k=curCh,c=CH[k],data=series[k]||[],svg=document.getElementById('chart');
+  const W=svg.clientWidth||600,H=svg.clientHeight||220;svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const PL=46,PR=12,PT=12,PB=20,pw=W-PL-PR,ph=H-PT-PB;
+  let lo=c.min,hi=c.max;if(c.warn!=null){lo=Math.min(lo,c.warn,c.crit);hi=Math.max(hi,c.warn,c.crit);}
+  if(data.length){const vs=data.map(d=>d.v);lo=Math.min(lo,...vs);hi=Math.max(hi,...vs);}
+  const pad=(hi-lo)*0.08||1;lo-=pad;hi+=pad;
+  const Y=v=>PT+ph-((v-lo)/(hi-lo))*ph;
+  const tEnd=data.length?data[data.length-1].t:Date.now(),tStart=tEnd-60000,X=t=>PL+((t-tStart)/60000)*pw;
+  let s='';
+  for(let i=0;i<=4;i++){const yy=PT+ph*i/4,val=hi-(hi-lo)*i/4;s+=`<line class="c-grid" x1="${PL}" y1="${yy}" x2="${W-PR}" y2="${yy}"/><text class="c-axis" x="${PL-6}" y="${yy+3}" text-anchor="end">${val.toFixed(c.dec)}</text>`;}
+  for(let i=0;i<=6;i++){const xx=PL+pw*i/6;s+=`<line class="c-grid" x1="${xx}" y1="${PT}" x2="${xx}" y2="${PT+ph}"/><text class="c-axis" x="${xx}" y="${H-6}" text-anchor="middle">-${60-i*10}s</text>`;}
+  if(c.warn!=null){const yW=Y(c.warn),yC=Y(c.crit);
+    if(c.dir==='high'){s+=`<rect class="c-fill" x="${PL}" y="${PT}" width="${pw}" height="${Math.max(0,yC-PT)}" fill="var(--crit)"/><rect class="c-fill" x="${PL}" y="${yC}" width="${pw}" height="${Math.max(0,yW-yC)}" fill="var(--warn)"/>`;}
+    else{s+=`<rect class="c-fill" x="${PL}" y="${yC}" width="${pw}" height="${Math.max(0,PT+ph-yC)}" fill="var(--crit)"/><rect class="c-fill" x="${PL}" y="${yW}" width="${pw}" height="${Math.max(0,yC-yW)}" fill="var(--warn)"/>`;}
+    s+=`<line class="c-thr warn" x1="${PL}" y1="${yW}" x2="${W-PR}" y2="${yW}"/><text class="c-thrlab" fill="var(--warn)" x="${W-PR}" y="${yW-4}" text-anchor="end">WARN ${c.warn}${c.unit}</text>`;
+    s+=`<line class="c-thr crit" x1="${PL}" y1="${yC}" x2="${W-PR}" y2="${yC}"/><text class="c-thrlab" fill="var(--crit)" x="${W-PR}" y="${yC-4}" text-anchor="end">CRIT ${c.crit}${c.unit}</text>`;}
+  if(data.length>1){const pts=data.map(d=>`${X(d.t).toFixed(1)},${Y(d.v).toFixed(1)}`).join(' '),col=STC[lastStatus[k]||'ok'];
+    s+=`<polyline class="c-line" points="${pts}" stroke="${col}"/>`;const l=data[data.length-1];s+=`<circle cx="${X(l.t).toFixed(1)}" cy="${Y(l.v).toFixed(1)}" r="3.2" fill="${col}"/>`;}
+  else s+=`<text class="c-axis" x="${W/2}" y="${H/2}" text-anchor="middle">esperando datos…</text>`;
+  svg.innerHTML=s;
+  const last=data.length?data[data.length-1].v:null;
+  const now=document.getElementById('chart-now');now.textContent=last!=null?last.toFixed(c.dec)+' '+c.unit:'—';now.style.color=STC[lastStatus[k]||'ok'];
+  document.getElementById('chart-meta').textContent=c.label.toUpperCase()+(c.warn!=null?` · WARN ${c.warn} · CRIT ${c.crit}`:' · sin umbral');}
+setInterval(drawChart,250);
+window.addEventListener('resize',drawChart);
 
-/* ---------------- render a backend message ---------------- */
-const startT=Date.now();let lastFrame=0,frames=0,hz=0;
+/* ===== primary gauge ===== */
+function primary(key,s,raw){const status=(s&&s.status)||'no_data',val=raw??0,c=CH[key];
+  smooth(key,val,c.dec);lastStatus[key]=status;
+  const tag=document.getElementById(key+'-tag');tag.textContent=status.replace('_',' ');tag.className='statustag s-'+status;
+  const bar=document.getElementById(key+'-bar');
+  if(bar){bar.style.width=pos(key,val)+'%';bar.style.background=(status==='critical'||status==='fault')?'var(--crit)':status==='warn'?'var(--warn)':'var(--ok)';}
+  if(key==='battery')updateBatt(val,status);
+  document.getElementById('g-'+key).querySelector('.pg').classList.toggle('faulted',status==='fault');
+  if(s){document.getElementById(key+'-trend').textContent=arr(s.trend_per_min)+' '+s.trend_per_min.toFixed(2)+' /min';if(status==='fault')document.getElementById(key+'-fb').textContent='⚠ '+(s.reason||'sensor fault').toUpperCase();}}
+
+/* ===== pause ===== */
+let paused=false;
+document.getElementById('pauseBtn').onclick=()=>{paused=!paused;const b=document.getElementById('pauseBtn');
+  b.textContent=paused?'▶ Resume':'❚❚ Pause';b.classList.toggle('paused',paused);document.body.classList.toggle('paused',paused);};
+
+/* ===== clock + session ===== */
+const startT=Date.now();
+setInterval(()=>{const d=new Date();
+  document.getElementById('ch').textContent=String(d.getHours()).padStart(2,'0');
+  document.getElementById('cm').textContent=String(d.getMinutes()).padStart(2,'0');
+  document.getElementById('cs').textContent=':'+String(d.getSeconds()).padStart(2,'0');
+  document.getElementById('date').textContent=d.toLocaleDateString('es',{day:'2-digit',month:'short'}).toUpperCase();
+  const ss=Math.floor((Date.now()-startT)/1000);document.getElementById('m-sess').textContent=`${String(Math.floor(ss/60)).padStart(2,'0')}:${String(ss%60).padStart(2,'0')}`;
+},250);
+
+/* ===== render ===== */
+let lastFrame=0,frames=0;
 function render(msg){
-  const raw=msg.raw||{},sig=msg.signals||{},link=msg.link||{};
-  // header
+  if(paused)return;                       // congela la telemetria en vivo
+  const raw=msg.raw||{},sig=msg.signals||{},link=msg.link||{},t=Date.now();
   document.getElementById('m-pkt').textContent=String(msg.pkt||0).padStart(6,'0');
   document.getElementById('m-loss').textContent=(link.loss_pct??0).toFixed(2)+'%';
   document.getElementById('m-crc').textContent=link.crc_fail??0;
-  const s=Math.floor((Date.now()-startT)/1000);
-  document.getElementById('m-sess').textContent=`${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
-  frames++;const nowt=Date.now();if(nowt-lastFrame>1000){hz=frames;frames=0;lastFrame=nowt;document.getElementById('m-hz').textContent=hz+' Hz';}
-  // link
-  const lk=document.getElementById('link');const on=link.alive!==false;
-  lk.className='link-pill '+(on?'online':'offline');document.getElementById('link-t').textContent=on?'ONLINE':'OFFLINE';
-  // rpm
-  setRPM(raw.rpm||0);smooth('rpm',raw.rpm||0,0);
-  smooth('tps2',raw.tps||0,0);smooth('ign2',raw.ign||0,0);
-  // primary gauges
-  primary('coolant',sig.coolant,raw.coolant,160,'°C');
-  primary('battery',sig.battery,raw.battery,16,'V');
-  // matrix
-  MATRIX.forEach(c=>{const v=raw[c.key]??0;smooth(c.key,v,c.dec);
-    const st=(sig[c.key]&&sig[c.key].status)||'ok';
-    document.getElementById('tile-'+c.key).className='tile t-'+st;
-    if(sig[c.key])document.getElementById('tr-'+c.key).textContent=arrow(sig[c.key].trend_per_min)+' '+sig[c.key].trend_per_min;});
-  // diagnostics
+  frames++;if(t-lastFrame>1000){document.getElementById('m-hz').textContent=frames+' Hz';frames=0;lastFrame=t;}
+  if(!msg.demo){const on=link.alive!==false;setConn(on?'online':'offline',on?'LIVE · WS 8765':'OFFLINE');}
+  setRPM(raw.rpm||0);smooth('rpm',raw.rpm||0,0);smooth('tps2',raw.tps||0,0);smooth('ign2',raw.ign||0,0);lastStatus.rpm=(sig.rpm&&sig.rpm.status)||'ok';
+  const tb=document.getElementById('tps2-bar');if(tb)tb.style.width=Math.min(100,Math.max(0,raw.tps||0))+'%';
+  const ib=document.getElementById('ign2-bar');if(ib)ib.style.width=Math.min(100,Math.max(0,((raw.ign||0)/45)*100))+'%';
+  primary('coolant',sig.coolant,raw.coolant);primary('battery',sig.battery,raw.battery);
+  MT.forEach(k=>{const c=meta(k),v=raw[k]??0;smooth(k,v,c.dec);const st=(sig[k]&&sig[k].status)||'ok';lastStatus[k]=st;document.getElementById('tile-'+k).className='tile t-'+st;if(sig[k])document.getElementById('tr-'+k).textContent=arr(sig[k].trend_per_min)+' '+sig[k].trend_per_min;});
+  HIST.forEach(k=>{if(raw[k]!=null)push(k,raw[k],t);});
   updateDiag(sig);
 }
-function primary(key,s,raw,max,unit){
-  const status=(s&&s.status)||'no_data',val=raw??0;
-  smooth(key,val,key==='battery'?1:0);
-  const tag=document.getElementById(key+'-tag');tag.textContent=status.replace('_',' ');tag.className='statustag s-'+status;
-  const bar=document.getElementById(key+'-bar');bar.style.width=Math.min(100,(val/max)*100)+'%';
-  bar.style.background=status==='critical'||status==='fault'?'var(--crit)':status==='warn'?'var(--warn)':'var(--ok)';
-  const panel=document.getElementById('g-'+key);panel.querySelector('.pg').classList.toggle('faulted',status==='fault');
-  if(s){document.getElementById(key+'-trend').textContent=arrow(s.trend_per_min)+' '+s.trend_per_min.toFixed(2)+' /min';
-    if(status==='fault')document.getElementById(key+'-fb').textContent='⚠ '+(s.reason||'sensor fault').toUpperCase();}
-  spark(key+'-spark',val);
-}
-
-/* ---------------- diagnostics log ---------------- */
 const activeEvt={};
-function updateDiag(sig){
-  const body=document.getElementById('diag');
-  for(const k in sig){const s=sig[k];const key=k+'|'+s.status+'|'+s.reason;
-    if(s.status!=='ok'){if(activeEvt[k]!==key){activeEvt[k]=key;addEvt(k,s);}}
-    else if(activeEvt[k]){delete activeEvt[k];}}
-  const empty=body.querySelector('.diag-empty');
-  if(Object.keys(activeEvt).length===0&&!empty)body.innerHTML='<div class="diag-empty">NO ACTIVE FAULTS · ALL CHANNELS NOMINAL</div>';
-  document.getElementById('diag-count').textContent=body.querySelectorAll('.evt').length+' EVENTS';
-}
-function addEvt(sigName,s){
-  const body=document.getElementById('diag');const e=body.querySelector('.diag-empty');if(e)e.remove();
+function updateDiag(sig){const body=document.getElementById('diag');
+  for(const k in sig){const s=sig[k],key=k+'|'+s.status+'|'+s.reason;if(s.status!=='ok'){if(activeEvt[k]!==key){activeEvt[k]=key;addEvt(k,s);}}else if(activeEvt[k])delete activeEvt[k];}
+  if(Object.keys(activeEvt).length===0&&!body.querySelector('.diag-empty')&&!body.querySelector('.evt'))body.innerHTML='<div class="diag-empty">ALL CHANNELS NOMINAL</div>';}
+function addEvt(name,s){const body=document.getElementById('diag'),e=body.querySelector('.diag-empty');if(e)e.remove();
   const d=new Date(),ts=`${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
-  const row=document.createElement('div');row.className='evt flashin lv-'+s.status;
-  row.innerHTML=`<span class="ts">${ts}</span><span class="sig">${sigName}</span><span class="msg">${s.status.toUpperCase()} · ${s.reason||''}</span>`;
-  body.insertBefore(row,body.firstChild);
-  while(body.querySelectorAll('.evt').length>12)body.lastChild.remove();
-  document.getElementById('diag-count').textContent=body.querySelectorAll('.evt').length+' EVENTS';
-}
+  const row=document.createElement('div');row.className='evt flashin lv-'+s.status;row.innerHTML=`<span class="ts">${ts}</span><span class="sig">${name}</span><span class="msg">${s.status.toUpperCase()} · ${s.reason||''}</span>`;
+  body.insertBefore(row,body.firstChild);while(body.querySelectorAll('.evt').length>30)body.lastChild.remove();
+  document.getElementById('diag-count').textContent=body.querySelectorAll('.evt').length+' EVT';}
 
-/* ---------------- transport: WebSocket + demo fallback ---------------- */
-const WS_URL='ws://'+(location.hostname||'localhost')+':8765';
-let gotReal=false;
-function connect(){
-  let ws;try{ws=new WebSocket(WS_URL);}catch(e){return;}
-  ws.onmessage=ev=>{try{const m=JSON.parse(ev.data);if(m.type==='telemetry'){gotReal=true;document.getElementById('src').textContent='SOURCE: WS '+WS_URL;render(m);}}catch(e){}};
-  ws.onclose=()=>{if(!gotReal)setTimeout(connect,2500);};
-  ws.onerror=()=>{try{ws.close();}catch(e){}};
-}
+/* ===== transport: busca el backend (que abre el COM) ===== */
+const WS='ws://'+(location.hostname||'localhost')+':8765';
+let gotReal=false,demoOn=false;
+function setConn(state,text){const p=document.getElementById('link');p.className='link-pill '+state;document.getElementById('link-t').textContent=text;}
+setConn('searching','SEARCHING COM…');
+function connect(){let ws;try{ws=new WebSocket(WS);}catch(e){return;}
+  ws.onmessage=ev=>{try{const m=JSON.parse(ev.data);if(m.type==='telemetry'){gotReal=true;demoOn=false;render(m);}}catch(e){}};
+  ws.onopen=()=>{if(!gotReal&&!demoOn)setConn('searching','LINK UP · esperando datos…');};
+  ws.onclose=()=>{if(!gotReal){if(!demoOn)setConn('searching','SEARCHING COM…');setTimeout(connect,2500);}};
+  ws.onerror=()=>{try{ws.close();}catch(e){}};}
 connect();
+/* tras 4s sin backend en el COM -> modo DEMO honesto (no finge ONLINE) */
+setTimeout(()=>{if(!gotReal){demoOn=true;setConn('demo','DEMO · sin backend');}},4000);
 
-/* demo simulator: same message shape as the Python backend, with an injected
-   coolant sensor fault (~18s) so the screen is alive without the backend. */
-let dpkt=0,dt0=Date.now();const dh={c:[],b:[]};
-function evalSig(val,cfg,prev,running){
-  // mini-diagnostico para que el demo refleje la logica del backend
-  if(cfg.fault.some(f=>Math.abs(val-f)<0.01))return{status:'fault',reason:'valor de riel: sensor abierto/en corto'};
-  if(val<cfg.pmin||val>cfg.pmax)return{status:'fault',reason:'fuera de rango fisico'};
-  if(cfg.stuck&&running&&prev.length>40&&Math.max(...prev)-Math.min(...prev)<=0.06)return{status:'fault',reason:'flatline: sensor trabado/cable suelto'};
-  if(cfg.dir==='high'){if(val>=cfg.crit)return{status:'critical',reason:'>= '+cfg.crit};if(val>=cfg.warn)return{status:'warn',reason:'>= '+cfg.warn};}
-  if(cfg.dir==='low'){if(val<=cfg.crit)return{status:'critical',reason:'<= '+cfg.crit};if(val<=cfg.warn)return{status:'warn',reason:'<= '+cfg.warn};}
-  return{status:'ok',reason:''};
-}
-function trend(a){if(a.length<3)return 0;return +(((a[a.length-1]-a[0])/(a.length))*1200).toFixed(2);}
-function demo(){
-  if(gotReal)return;
-  const el=(Date.now()-dt0)/1000;dpkt++;
-  const rpm=Math.max(0,1100+2700*(0.5+0.5*Math.sin(el*0.6))+(Math.random()*120-60));
-  const tps=Math.min(100,Math.max(0,(rpm-1100)/40+(Math.random()*4-2)));
-  let coolant=Math.min(92,25+el*2.4)+(Math.random()*0.6-0.3);
-  if(el>=18&&el<32)coolant=88.4;            // flatline
-  else if(el>=32)coolant=215.0;             // riel
-  const battery=13.8+(Math.random()*0.2-0.1);
-  dh.c.push(coolant);if(dh.c.length>45)dh.c.shift();
-  const raw={rpm:Math.round(rpm),tps:+tps.toFixed(1),fuel:+(2.5+tps*0.05).toFixed(1),ign:+(15+tps*0.2).toFixed(1),
-    baro:101.0,map:+(30+tps*1.5).toFixed(1),lambda:+(0.95+(Math.random()*0.06-0.03)).toFixed(2),
-    battery:+battery.toFixed(1),air:+(28+(Math.random()-0.5)).toFixed(1),coolant:+coolant.toFixed(1),an5:0};
-  const cool=evalSig(coolant,{fault:[215,-40],pmin:-30,pmax:160,dir:'high',warn:100,crit:110,stuck:true},dh.c,rpm>500);
-  cool.trend_per_min=trend(dh.c);
-  const signals={
-    coolant:cool,
-    battery:{status:'ok',reason:'',trend_per_min:0},
-    map:{status:'ok',trend_per_min:0},lambda:{status:'ok',trend_per_min:0},
-    air:{status:'ok',trend_per_min:trend([28,raw.air])},fuel:{status:'ok',trend_per_min:0},
-    baro:{status:'ok',trend_per_min:0},tps:{status:'ok',trend_per_min:0},ign:{status:'ok',trend_per_min:0},an5:{status:'ok',trend_per_min:0}
-  };
-  render({type:'telemetry',pkt:dpkt,raw,signals,
-    link:{alive:true,loss_pct:0,crc_fail:0,total:dpkt},overall:cool.status});
-  document.getElementById('src').textContent='SOURCE: DEMO (sin backend) · falla inyectada ~18s';
-}
+/* demo */
+let dpkt=0,dt0=Date.now();const dc=[];
+function evalSig(v,cfg,prev,run){if(cfg.fault.some(f=>Math.abs(v-f)<0.01))return{status:'fault',reason:'valor de riel: sensor abierto/en corto'};if(v<cfg.pmin||v>cfg.pmax)return{status:'fault',reason:'fuera de rango fisico'};if(cfg.stuck&&run&&prev.length>40&&Math.max(...prev)-Math.min(...prev)<=0.06)return{status:'fault',reason:'flatline: sensor trabado/cable suelto'};if(v>=cfg.crit)return{status:'critical',reason:'>= '+cfg.crit};if(v>=cfg.warn)return{status:'warn',reason:'>= '+cfg.warn};return{status:'ok',reason:''};}
+const trd=a=>a.length<3?0:+(((a[a.length-1]-a[0])/a.length)*1200).toFixed(2);
+function demo(){if(gotReal||!demoOn)return;const el=(Date.now()-dt0)/1000;dpkt++;
+  const rpm=Math.max(0,1100+2700*(0.5+0.5*Math.sin(el*0.6))+(Math.random()*120-60)),tps=Math.min(100,Math.max(0,(rpm-1100)/40+(Math.random()*4-2)));
+  let coolant=Math.min(94,25+el*2.4)+(Math.random()*0.6-0.3);if(el>=20&&el<34)coolant=88.4;else if(el>=34)coolant=215.0;
+  dc.push(coolant);if(dc.length>45)dc.shift();
+  const raw={rpm:Math.round(rpm),tps:+tps.toFixed(1),fuel:+(2.5+tps*0.05).toFixed(1),ign:+(15+tps*0.2).toFixed(1),baro:101,map:+(30+tps*1.5).toFixed(1),lambda:+(0.95+(Math.random()*0.06-0.03)).toFixed(2),battery:+(13.8+(Math.random()*0.2-0.1)).toFixed(1),air:+(28+el*0.25+(Math.random()-0.5)).toFixed(1),coolant:+coolant.toFixed(1),an5:0};
+  const cool=evalSig(coolant,{fault:[215,-40],pmin:-30,pmax:160,dir:'high',warn:100,crit:110,stuck:true},dc,rpm>500);cool.trend_per_min=trd(dc);
+  const ok=()=>({status:'ok',reason:'',trend_per_min:0});
+  render({type:'telemetry',demo:true,pkt:dpkt,raw,link:{alive:true,loss_pct:0,crc_fail:0,total:dpkt},overall:cool.status,signals:{coolant:cool,battery:ok(),map:ok(),lambda:ok(),air:ok(),fuel:ok(),baro:ok(),tps:ok(),ign:ok(),an5:ok()}});}
 setInterval(demo,50);
+setTimeout(drawChart,300);
 </script>
 </body>
 </html>
