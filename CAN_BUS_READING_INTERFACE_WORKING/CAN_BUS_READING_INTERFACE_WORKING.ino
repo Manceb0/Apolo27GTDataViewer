@@ -2,7 +2,10 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <driver/twai.h>
+#include "esp_task_wdt.h"
 
+// ===================== CONFIG =====================
+// --- CAN bus (TWAI) ---
 #define CAN1_RX_PIN GPIO_NUM_6
 #define CAN1_TX_PIN GPIO_NUM_7
 
@@ -10,6 +13,26 @@
 #define ID_PE2 0x0CFFF148
 #define ID_PE4 0x0CFFF348
 #define ID_PE6 0x0CFFF548
+
+// --- Telemetria / contrato de datos ---
+#define TELEMETRY_PERIOD_MS 50     // 20 Hz de salida hacia el gateway/PC
+#define CAN_HEALTH_PERIOD_MS 500   // chequeo de salud del bus CAN
+#define STALE_MS 1000              // si un grupo PE no llega en este tiempo -> dato obsoleto
+
+// --- Watchdog (auto-recuperacion) ---
+#define WDT_TIMEOUT_MS 4000
+
+// --- Umbrales configurables de variables criticas ---
+#define RPM_MAX 9000
+#define COOLANT_MAX 110.0          // °C
+#define BATTERY_MIN 11.5           // V
+
+// --- LoRa (transmision) ---
+// Este nodo es el de ADQUISICION (lee CAN del PE3 y arma el paquete).
+// La salida canonica va por Serial como trama enmarcada con CRC.
+// Para enviar por LoRa, conecta tu modulo y llama sendOverLoRa(frame).
+#define USE_LORA 0
+// ==================================================
 
 WebServer server(80);
 
@@ -25,6 +48,15 @@ String pressureType = "-", tempType = "-";
 
 uint32_t msgCount = 0;
 uint32_t lastCanMs = 0;
+
+// Frescura por grupo PE (para detectar datos obsoletos por señal)
+uint32_t lastPE1Ms = 0, lastPE2Ms = 0, lastPE4Ms = 0, lastPE6Ms = 0;
+
+// Metadatos del contrato de telemetria
+uint32_t packetId = 0;     // secuencia de paquete (tambien sirve de heartbeat)
+uint32_t busErrCount = 0;  // errores/recuperaciones del bus CAN
+uint32_t lastTelemetryMs = 0;
+uint32_t lastHealthMs = 0;
 
 uint16_t u16le(uint8_t *d, int i) {
   return d[i] | (d[i + 1] << 8);
@@ -49,6 +81,7 @@ void readCAN() {
       tps = s16le(msg.data, 2) * 0.1;
       fuelMs = s16le(msg.data, 4) * 0.1;
       ignitionDeg = s16le(msg.data, 6) * 0.1;
+      lastPE1Ms = lastCanMs;
     }
 
     else if (msg.identifier == ID_PE2) {
@@ -56,6 +89,7 @@ void readCAN() {
       mapVal = s16le(msg.data, 2) * 0.01;
       lambda = s16le(msg.data, 4) * 0.01;
       pressureType = (msg.data[6] & 0x01) ? "kPa" : "psi";
+      lastPE2Ms = lastCanMs;
     }
 
     else if (msg.identifier == ID_PE4) {
@@ -63,6 +97,7 @@ void readCAN() {
       an6 = s16le(msg.data, 2) * 0.001;
       an7 = s16le(msg.data, 4) * 0.001;
       an8 = s16le(msg.data, 6) * 0.001;
+      lastPE4Ms = lastCanMs;
     }
 
     else if (msg.identifier == ID_PE6) {
@@ -70,8 +105,31 @@ void readCAN() {
       airTemp = s16le(msg.data, 2) * 0.1;
       coolantTemp = s16le(msg.data, 4) * 0.1;
       tempType = (msg.data[6] & 0x01) ? "°C" : "°F";
+      lastPE6Ms = lastCanMs;
     }
   }
+}
+
+bool isFresh(uint32_t lastMs) {
+  return lastMs != 0 && (millis() - lastMs) < STALE_MS;
+}
+
+// Telemetria valida = al menos un grupo de señales del PE3 esta fresco
+bool telemetryValid() {
+  return isFresh(lastPE1Ms) || isFresh(lastPE2Ms) ||
+         isFresh(lastPE4Ms) || isFresh(lastPE6Ms);
+}
+
+// CRC16-CCITT (poly 0x1021, init 0xFFFF) para verificar integridad del paquete
+uint16_t crc16(const char* data, size_t len) {
+  uint16_t crc = 0xFFFF;
+  for (size_t i = 0; i < len; i++) {
+    crc ^= (uint16_t)(uint8_t)data[i] << 8;
+    for (int b = 0; b < 8; b++) {
+      crc = (crc & 0x8000) ? (crc << 1) ^ 0x1021 : (crc << 1);
+    }
+  }
+  return crc;
 }
 
 String jsonData() {
@@ -93,9 +151,57 @@ String jsonData() {
   s += "\"an7\":" + String(an7, 3) + ",";
   s += "\"an8\":" + String(an8, 3) + ",";
   s += "\"count\":" + String(msgCount) + ",";
+  s += "\"pkt\":" + String(packetId) + ",";
+  s += "\"ts\":" + String(millis()) + ",";
+  s += "\"fresh1\":" + String(isFresh(lastPE1Ms) ? "true" : "false") + ",";
+  s += "\"fresh2\":" + String(isFresh(lastPE2Ms) ? "true" : "false") + ",";
+  s += "\"fresh4\":" + String(isFresh(lastPE4Ms) ? "true" : "false") + ",";
+  s += "\"fresh6\":" + String(isFresh(lastPE6Ms) ? "true" : "false") + ",";
+  s += "\"busErr\":" + String(busErrCount) + ",";
+  s += "\"valid\":" + String(telemetryValid() ? "true" : "false") + ",";
   s += "\"alive\":" + String((millis() - lastCanMs < 1000) ? "true" : "false");
   s += "}";
   return s;
+}
+
+// Punto de envio por LoRa. Conecta tu modulo y descomenta el bloque de abajo.
+void sendOverLoRa(const String& frame) {
+#if USE_LORA
+  // Ejemplo con la libreria LoRa de Sandeep Mistry (#include <LoRa.h>):
+  // LoRa.beginPacket();
+  // LoRa.print(frame);
+  // LoRa.endPacket();
+#endif
+}
+
+// Arma la trama del contrato y la emite por Serial (y LoRa si esta activo):
+//   $A27,{json}*CRC16HEX
+// El backend Python valida el CRC sobre el texto entre "$A27," y "*".
+void emitTelemetry() {
+  packetId++;                       // secuencia + heartbeat: avanza siempre, haya CAN o no
+  String json = jsonData();
+  uint16_t crc = crc16(json.c_str(), json.length());
+
+  char crcHex[5];
+  sprintf(crcHex, "%04X", crc);
+
+  String frame = "$A27," + json + "*" + crcHex;
+  Serial.println(frame);
+  sendOverLoRa(frame);
+}
+
+// Monitorea el bus CAN y lo recupera automaticamente si entra en bus-off
+void canHealthCheck() {
+  twai_status_info_t st;
+  if (twai_get_status_info(&st) != ESP_OK) return;
+
+  if (st.state == TWAI_STATE_BUS_OFF) {
+    twai_initiate_recovery();
+    busErrCount++;
+  } else if (st.state == TWAI_STATE_STOPPED) {
+    twai_start();
+    busErrCount++;
+  }
 }
 
 const char page[] PROGMEM = R"rawliteral(
@@ -429,6 +535,19 @@ void setup() {
 
   setupCAN();
 
+  // Watchdog: reinicia el ESP32 si el loop se cuelga (auto-recuperacion)
+#if ESP_IDF_VERSION_MAJOR >= 5
+  esp_task_wdt_config_t twdt = {
+    .timeout_ms = WDT_TIMEOUT_MS,
+    .idle_core_mask = 0,
+    .trigger_panic = true
+  };
+  esp_task_wdt_reconfigure(&twdt);
+#else
+  esp_task_wdt_init(WDT_TIMEOUT_MS / 1000, true);
+#endif
+  esp_task_wdt_add(NULL);
+
   WiFi.softAP(ssid, password);
 
   server.on("/", []() {
@@ -453,4 +572,20 @@ void setup() {
 void loop() {
   readCAN();
   server.handleClient();
+
+  uint32_t now = millis();
+
+  // Emite la trama del contrato a ritmo fijo (heartbeat + secuencia siempre avanza)
+  if (now - lastTelemetryMs >= TELEMETRY_PERIOD_MS) {
+    lastTelemetryMs = now;
+    emitTelemetry();
+  }
+
+  // Vigila y recupera el bus CAN
+  if (now - lastHealthMs >= CAN_HEALTH_PERIOD_MS) {
+    lastHealthMs = now;
+    canHealthCheck();
+  }
+
+  esp_task_wdt_reset();
 }
