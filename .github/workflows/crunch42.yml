@@ -1,0 +1,41 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+# This workflow locates REST API file contracts (Swagger or OpenAPI format, v2 and v3, JSON and YAML)
+# and runs 300+ security checks on them using 42Crunch Security Audit technology to uncover
+# potential vulnerabilities related to authentication, authorization as well as data validation.
+#
+# Documentation: https://docs.42crunch.com/latest/content/tasks/integrate_github_actions.htm
+
+name: "42Crunch REST API Static Security Testing"
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    - cron: "30 13 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rest-api-static-security-testing:
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 42Crunch REST API Static Security Testing
+        uses: 42Crunch/api-security-audit-action@fc01ea7a89e6268875868f9d89598af7a9899ae0
+        with:
+          api-token: ${{ secrets.API_TOKEN }}
+          min-score: 0
+          upload-to-code-scanning: true
+          github-token: ${{ github.token }}
