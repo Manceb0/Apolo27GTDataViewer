@@ -28,6 +28,7 @@ from contract import parse_frame
 from storage import Storage
 from diagnostics import Diagnostics
 from simulator import generate_frame
+from ports import find_esp32_port
 
 
 class LinkStats:
@@ -161,6 +162,14 @@ class Backend:
             asyncio.run_coroutine_threadsafe(self.broadcast(message), self.loop)
 
     def serial_reader(self, port, baud):
+        # Si no se especifico puerto, auto-detecta el ESP32
+        if not port:
+            print("[serial] buscando ESP32 en los COM...")
+            port = find_esp32_port(baud, probe_seconds=3.0)
+            if not port:
+                print("[serial] NO ENCONTRADO — verifica el cable USB/gateway y reintenta")
+                return
+
         print(f"[serial] abriendo {port} @ {baud}")
         while True:
             try:
@@ -188,7 +197,7 @@ class Backend:
         if args.sim:
             reader = threading.Thread(target=self.sim_reader, daemon=True)
         else:
-            port = args.port or config.SERIAL_PORT
+            port = args.port or None  # None = auto-detectar
             reader = threading.Thread(
                 target=self.serial_reader, args=(port, config.SERIAL_BAUD), daemon=True)
         reader.start()

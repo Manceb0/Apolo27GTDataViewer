@@ -27,7 +27,7 @@ CORE_FIELDS = [
 class Storage:
     def __init__(self, db_path=DB_PATH):
         DATA_DIR.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(str(db_path))
+        self.conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self.conn.execute("PRAGMA journal_mode=WAL;")
         self.conn.execute("PRAGMA synchronous=NORMAL;")
         self._init_schema()

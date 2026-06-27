@@ -6,8 +6,8 @@
 
 // ===================== CONFIG =====================
 // --- CAN bus (TWAI) ---
-#define CAN1_RX_PIN GPIO_NUM_6
-#define CAN1_TX_PIN GPIO_NUM_7
+#define CAN1_RX_PIN GPIO_NUM_22
+#define CAN1_TX_PIN GPIO_NUM_21
 
 #define ID_PE1 0x0CFFF048
 #define ID_PE2 0x0CFFF148
